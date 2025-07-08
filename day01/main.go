@@ -37,13 +37,17 @@ func main() {
 	}
 
 	targetPrefix := strings.Repeat("0", zeroCount)
-	nonce := 0
 	startTime := time.Now()
+	iteration := 0
 	fmt.Printf("开始计算，目标：找到以%d个0开头的哈希值...\n", zeroCount)
 
 	for {
-		// 将昵称和nonce拼接成字符串
-		data := fmt.Sprintf("%s%d", nickname, nonce)
+		// 获取当前时间戳（纳秒级）
+		timestamp := time.Now().UnixNano()
+		fmt.Println(timestamp)
+
+		// 将昵称和时间戳拼接成字符串
+		data := fmt.Sprintf("%s%d", nickname, timestamp)
 
 		// 计算SHA-256哈希
 		hash := sha256.Sum256([]byte(data))
@@ -55,16 +59,16 @@ func main() {
 			fmt.Printf("\n找到符合条件的哈希值！\n")
 			fmt.Printf("输入字符串: %s\n", data)
 			fmt.Printf("Hash值: %s\n", hashStr)
-			fmt.Printf("计算次数: %d\n", nonce+1)
+			fmt.Printf("计算次数: %d\n", iteration+1)
 			fmt.Printf("耗时: %v\n", elapsed)
 			break
 		}
 
-		nonce++
+		iteration++
 
-		// 每100万次输出一次进度
-		if nonce%1000000 == 0 {
-			fmt.Printf("\r已尝试 %d 次...", nonce)
+		// 每1000次输出一次进度
+		if iteration%1000 == 0 {
+			fmt.Printf("\r已尝试 %d 次...", iteration)
 		}
 	}
 }
