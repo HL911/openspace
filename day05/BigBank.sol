@@ -52,9 +52,15 @@ contract BigBank is Bank {
         owner = _newOwner;
     }
 
+    function adminWithdraw() payable external onlyOwner {
+        payable(owner).transfer(address(this).balance);
+    }
+
 }
     
 contract Admin  {
+    // 添加接收 ETH 的回退函数
+receive() external payable {}
     address public owner;
     constructor() {
         owner = msg.sender;
@@ -65,8 +71,8 @@ contract Admin  {
     }
 
     
-    function adminWithdraw(IBank _bank) payable  external onlyOwner {
-        payable(address(this)).transfer(address(_bank).balance);
+    function adminWithdraw(BigBank _bank) payable  external onlyOwner {
+        _bank.adminWithdraw();
     }
 
     function withdraw() payable  external onlyOwner {
