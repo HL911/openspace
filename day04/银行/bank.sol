@@ -124,6 +124,5 @@ contract Bank {
                 amount: _topAddresses[i].amount
             });
         }
-    
     }
 }
