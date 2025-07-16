@@ -1,0 +1,16 @@
+{
+    "title": "集训营学员 - HL",
+    "description": "OpenSpace - 华语 Web3 黄埔军校",
+    "image": "https://gold-ready-skunk-663.mypinata.cloud/ipfs/bafybeifkdvazcqz7mma4sqpxguw6fkmskg7b7w5elgim5gw73d55qr7smu",
+    "attributes": [
+    {
+    "trait_type": "学号",
+    "value": "HL911"
+    },
+    {
+    "trait_type": "昵称",
+    "value": "HL"
+    }
+    ],
+    "version": "2"
+}
