@@ -1,7 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-contract MyToken {
+// ERC20 代币接口
+interface IERC20 {
+    function transfer(address to, uint256 value) external returns (bool);
+    function transferFrom(address from, address to, uint256 value) external returns (bool);
+    function balanceOf(address owner) external view returns (uint256);
+    function approve(address spender, uint256 value) external returns (bool);
+    function allowance(address owner, address spender) external view returns (uint256);
+}
+
+// ERC20 扩展接口 - 接收代币的合约需要实现此接口
+interface IERC20Receiver {
+    function tokensReceived(address from, uint256 amount, bytes calldata data) external returns (bool);
+}
+
+contract MyToken is IERC20 {
     
     string public name = "MyToken";
     string public symbol = "MTK";
@@ -70,17 +84,36 @@ contract MyToken {
         emit Approval(owner, spender, value);
     }
 
-    function transferWithCallback(address to, uint256 value) public returns (bool) {
+    // 扩展的转账函数，支持回调
+    function transferWithCallback(address to, uint256 value, bytes calldata data) public returns (bool) {
         _transfer(msg.sender, to, value);
-        if(isContract(to)) {
-            (bool success, ) = to.call(abi.encodeWithSignature("tokensReceived(address,uint256)",msg.sender, value));
-            require(success, "ERC20: transfer failed");
+        
+        // 如果目标地址是合约，调用其 tokensReceived 回调
+        if (isContract(to)) {
+            try IERC20Receiver(to).tokensReceived(msg.sender, value, data) {
+                // 回调成功
+            } catch {
+                revert("ERC20: tokensReceived callback failed");
+            }
         }
+        
         return true;
     }
-
-    function tokensReceived(address from, uint256 value) public {
-        _transfer(from, msg.sender, value);
+    
+    // 标准转账函数重写，添加对回调的支持
+    function transfer(address to, uint256 value) public override returns (bool) {
+        _transfer(msg.sender, to, value);
+        
+        // 如果目标地址是合约，调用其 tokensReceived 回调
+        if (isContract(to)) {
+            try IERC20Receiver(to).tokensReceived(msg.sender, value, "") {
+                // 回调成功
+            } catch {
+                // 忽略回调失败，保持向后兼容性
+            }
+        }
+        
+        return true;
     }
 
 
