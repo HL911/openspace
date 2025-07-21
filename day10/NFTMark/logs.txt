@@ -1,0 +1,15 @@
+Ran 11 tests for test/NFTMarkt/NFTMarket.t.sol:NFTMarketTest
+[PASS] testFuzz_RandomPriceAndBuyer(uint256,address) (runs: 256, μ: 278878, ~: 278988)
+[PASS] test_BuyNFT_AlreadySold() (gas: 274294)
+[PASS] test_BuyNFT_ExcessPayment() (gas: 249288)
+[PASS] test_BuyNFT_InsufficientFunds() (gas: 249872)
+[PASS] test_BuyNFT_Success() (gas: 230408)
+[PASS] test_BuyOwnNFT() (gas: 198895)
+[PASS] test_ListNFT_AlreadyListed() (gas: 174878)
+[PASS] test_ListNFT_NotApproved() (gas: 33388)
+[PASS] test_ListNFT_Success() (gas: 187494)
+[PASS] test_ListNFT_ZeroAddress() (gas: 14670)
+[PASS] test_ListNFT_ZeroPrice() (gas: 47905)
+Suite result: ok. 11 passed; 0 failed; 0 skipped; finished in 75.71ms (79.89ms CPU time)
+
+Ran 1 test suite in 84.64ms (75.71ms CPU time): 11 tests passed, 0 failed, 0 skipped (11 total tests)
