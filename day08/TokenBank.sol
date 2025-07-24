@@ -2,7 +2,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract TokenBank is ReentrancyGuard {
     // 代币合约地址
@@ -58,5 +58,11 @@ contract TokenBank is ReentrancyGuard {
     // 查询用户存款余额
     function getUserBalance(address _user) external view returns (uint256) {
         return balances[_user];
+    }
+    
+    // 修改owner
+    function changeOwner(address _newOwner) external{
+        require(msg.sender == owner, "Only owner can change owner");
+        owner = _newOwner;
     }
 }
