@@ -25,7 +25,10 @@ interface IExtendedERC20 is IERC20 {
 
 
 contract NFTMarket  is ITokenReceiver{
-    // 扩展的ERC20代币合约地址
+    // 管理员地址
+    address public admin;
+    
+    // 扩展的ERC20代币合约地址（默认支付代币）
     IExtendedERC20 public paymentToken;
     
     // NFT上架信息结构体
@@ -49,9 +52,20 @@ contract NFTMarket  is ITokenReceiver{
     event NFTSold(uint256 indexed listingId, address indexed buyer, address indexed seller, address nftContract, uint256 tokenId, uint256 price);
     event NFTListingCancelled(uint256 indexed listingId, address indexed buyer, address indexed nftContract);
     
+    // 管理员相关事件
+    event AdminChanged(address indexed oldAdmin, address indexed newAdmin);
+    event DefaultPaymentTokenChanged(address indexed oldToken, address indexed newToken);
+    
+    // 管理员权限修饰符
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "NFTMarket: caller is not admin");
+        _;
+    }
+    
     // 构造函数，设置支付代币地址
     constructor(address _paymentTokenAddress) {
         require(_paymentTokenAddress != address(0), "NFTMarket: payment token address cannot be zero");
+        admin = msg.sender; // 设置部署者为管理员
         paymentToken = IExtendedERC20(_paymentTokenAddress);
     }
 
@@ -95,6 +109,27 @@ contract NFTMarket  is ITokenReceiver{
         });
         nextListingId++;
         emit NFTListed(listingId, owner, _nftContract, _tokenId, _price);
+    }
+    
+    // 上架NFT（使用默认支付代币）
+    function list(address _nftContract, uint256 _tokenId, uint256 _price) public {
+        list(_nftContract, _tokenId, _price, address(paymentToken));
+    }
+    
+    // 管理员方法：修改默认支付代币
+    function setDefaultPaymentToken(address _newPaymentToken) public onlyAdmin {
+        require(_newPaymentToken != address(0), "NFTMarket: payment token address cannot be zero");
+        address oldToken = address(paymentToken);
+        paymentToken = IExtendedERC20(_newPaymentToken);
+        emit DefaultPaymentTokenChanged(oldToken, _newPaymentToken);
+    }
+    
+    // 管理员方法：转移管理员权限
+    function transferAdmin(address _newAdmin) public onlyAdmin {
+        require(_newAdmin != address(0), "NFTMarket: new admin address cannot be zero");
+        address oldAdmin = admin;
+        admin = _newAdmin;
+        emit AdminChanged(oldAdmin, _newAdmin);
     }
     // 取消
     function cancelListing(uint256 _listingId) public {
