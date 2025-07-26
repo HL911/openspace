@@ -34,6 +34,7 @@ contract NFTMarket  is ITokenReceiver{
         address nftContract; // NFT合约地址
         uint256 tokenId;     // NFT的tokenId
         uint256 price;       // 价格（以Token为单位）
+        address paymentToken; // 指定的支付代币地址
         bool isActive;       // 是否处于活跃状态
     }
     
@@ -46,7 +47,7 @@ contract NFTMarket  is ITokenReceiver{
     // NFT上架和购买事件
     event NFTListed(uint256 indexed listingId, address indexed seller, address indexed nftContract, uint256 tokenId, uint256 price);
     event NFTSold(uint256 indexed listingId, address indexed buyer, address indexed seller, address nftContract, uint256 tokenId, uint256 price);
-    event NFTListingCancelled(uint256 indexed listingId);
+    event NFTListingCancelled(uint256 indexed listingId, address indexed buyer, address indexed nftContract);
     
     // 构造函数，设置支付代币地址
     constructor(address _paymentTokenAddress) {
@@ -56,11 +57,13 @@ contract NFTMarket  is ITokenReceiver{
 
 
     // 上架
-    function list(address _nftContract, uint256 _tokenId, uint256 _price) public {
+    function list(address _nftContract, uint256 _tokenId, uint256 _price, address _paymentToken) public {
         // 检查价格大于0
         require(_price > 0, "NFTMarket: price must be greater than zero");
         // 检查nft合约是否有效
         require(_nftContract != address(0), "NFTMarket: nft contract address cannot be zero");
+        // 检查支付代币地址是否有效
+        require(_paymentToken != address(0), "NFTMarket: payment token address cannot be zero");
         // 检查nft是否已经上架
         for (uint256 i = 0; i < nextListingId; i++) {
             if (listings[i].nftContract == _nftContract && 
@@ -87,6 +90,7 @@ contract NFTMarket  is ITokenReceiver{
             nftContract: _nftContract,
             tokenId: _tokenId,
             price: _price,
+            paymentToken: _paymentToken,
             isActive: true
         });
         nextListingId++;
@@ -99,7 +103,73 @@ contract NFTMarket  is ITokenReceiver{
         require(listing.isActive, "NFTMarket: listing is not active");
         require(listing.seller == msg.sender, "NFTMarket: caller is not seller");
         listing.isActive = false;
-        emit NFTListingCancelled(_listingId);
+        emit NFTListingCancelled(_listingId, msg.sender, listing.nftContract);
+    }
+    
+    // 查看所有活跃的上架NFT
+    function getActiveListings() public view returns (Listing[] memory) {
+        // 首先计算活跃listing的数量
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < nextListingId; i++) {
+            if (listings[i].isActive) {
+                activeCount++;
+            }
+        }
+        
+        // 创建结果数组
+        Listing[] memory activeListings = new Listing[](activeCount);
+        uint256 currentIndex = 0;
+        
+        // 填充活跃的listing
+        for (uint256 i = 0; i < nextListingId; i++) {
+            if (listings[i].isActive) {
+                activeListings[currentIndex] = listings[i];
+                currentIndex++;
+            }
+        }
+        
+        return activeListings;
+    }
+    
+    // 查看指定卖家的所有活跃上架NFT
+    function getSellerActiveListings(address seller) public view returns (Listing[] memory) {
+        // 首先计算该卖家活跃listing的数量
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < nextListingId; i++) {
+            if (listings[i].isActive && listings[i].seller == seller) {
+                activeCount++;
+            }
+        }
+        
+        // 创建结果数组
+        Listing[] memory activeListings = new Listing[](activeCount);
+        uint256 currentIndex = 0;
+        
+        // 填充该卖家活跃的listing
+        for (uint256 i = 0; i < nextListingId; i++) {
+            if (listings[i].isActive && listings[i].seller == seller) {
+                activeListings[currentIndex] = listings[i];
+                currentIndex++;
+            }
+        }
+        
+        return activeListings;
+    }
+    
+    // 获取总的listing数量
+    function getTotalListingsCount() public view returns (uint256) {
+        return nextListingId;
+    }
+    
+    // 获取活跃listing数量
+    function getActiveListingsCount() public view returns (uint256) {
+        uint256 activeCount = 0;
+        for (uint256 i = 0; i < nextListingId; i++) {
+            if (listings[i].isActive) {
+                activeCount++;
+            }
+        }
+        return activeCount;
     }
     // 购买
     function buy(uint256 _listingId) public {
@@ -108,12 +178,16 @@ contract NFTMarket  is ITokenReceiver{
         require(_listingId < nextListingId, "NFTMarket: listing id does not exist");
         // 检查listing是否处于活跃状态
         require(listing.isActive, "NFTMarket: listing is not active");
+        
+        // 获取指定的支付代币合约
+        IERC20 listingPaymentToken = IERC20(listing.paymentToken);
+        
         // 检查买家是否有足够的代币
-        require(paymentToken.balanceOf(msg.sender) >= listing.price, "NFTMarket: not enough payment token");
+        require(listingPaymentToken.balanceOf(msg.sender) >= listing.price, "NFTMarket: not enough payment token");
         //将上架信息标记为非活跃
         listing.isActive = false;
         // 处理代币转账（买家 -> 卖家）
-        paymentToken.transferFrom(msg.sender, listing.seller, listing.price);
+        listingPaymentToken.transferFrom(msg.sender, listing.seller, listing.price);
         // 处理NFT转移（卖家 -> 买家）
         IERC721(listing.nftContract).transferFrom(listing.seller, msg.sender, listing.tokenId);
         emit NFTSold(_listingId, msg.sender, listing.seller, listing.nftContract, listing.tokenId, listing.price);
@@ -122,24 +196,39 @@ contract NFTMarket  is ITokenReceiver{
 
     // 实现tokensReceived接口，处理通过transferWithCallback接收到的代币
     function tokensReceived(address from, uint256 amount, bytes calldata data) external override returns (bool) {
-        // 检查调用者是否为代币合约
-        require(msg.sender == address(paymentToken), "NFTMarket: caller is not payment token");
         // 解析附加数据，获取listingId
         require(data.length == 32, "NFTMarket: invalid data length");
         uint256 listingId = abi.decode(data, (uint256));
+        
         // 检查上架信息是否存在且处于活跃状态
         Listing storage listing = listings[listingId];
+        require(listingId < nextListingId, "NFTMarket: listing id does not exist");
         require(listing.isActive, "NFTMarket: listing is not active");
+        
+        // 检查调用者是否为该listing指定的支付代币合约
+        require(msg.sender == listing.paymentToken, "NFTMarket: caller is not the specified payment token for this listing");
+        
         // 检查买家是否有足够的代币
         require(amount >= listing.price, "NFTMarket: not enough payment token");
+        
         // 将上架信息标记为非活跃
         listing.isActive = false;
+        
         // 处理NFT转移（卖家 -> 买家）
-        IERC721(listing.nftContract).transferFrom(listing.seller, msg.sender, listing.tokenId);
+        IERC721(listing.nftContract).transferFrom(listing.seller, from, listing.tokenId);
+        
         // 处理代币转账（买家 -> 卖家）
-        bool success = paymentToken.transfer(listing.seller, amount);
+        IERC20 listingPaymentToken = IERC20(listing.paymentToken);
+        bool success = listingPaymentToken.transfer(listing.seller, listing.price);
         require(success, "NFTMarket: token transfer to seller failed");
-        emit NFTSold(listingId, msg.sender, listing.seller, listing.nftContract, listing.tokenId, listing.price);
+        
+        // 如果支付金额大于价格，退还多余部分
+        if (amount > listing.price) {
+            bool refundSuccess = listingPaymentToken.transfer(from, amount - listing.price);
+            require(refundSuccess, "NFTMarket: refund failed");
+        }
+        
+        emit NFTSold(listingId, from, listing.seller, listing.nftContract, listing.tokenId, listing.price);
         return true;
     }
 
