@@ -36,6 +36,7 @@ contract NFTMarket  is ITokenReceiver{
         address seller;      // 卖家地址
         address nftContract; // NFT合约地址
         uint256 tokenId;     // NFT的tokenId
+        uint256 listingId;   // 上架ID
         uint256 price;       // 价格（以Token为单位）
         address paymentToken; // 指定的支付代币地址
         bool isActive;       // 是否处于活跃状态
@@ -103,6 +104,7 @@ contract NFTMarket  is ITokenReceiver{
             seller: owner,
             nftContract: _nftContract,
             tokenId: _tokenId,
+            listingId: listingId,
             price: _price,
             paymentToken: _paymentToken,
             isActive: true
