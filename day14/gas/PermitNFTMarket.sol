@@ -418,9 +418,9 @@ contract NFTMarket  is ITokenReceiver,ReentrancyGuard, Ownable, EIP712 {
         bytes32 hash = _hashTypedDataV4(structHash);
         address signer = ECDSA.recover(hash, v, r, s);
         require(signer != address(0), "Invalid signature");
-        require(signer == owner(), "Signature must be from contract owner");
-
         address seller = listing.seller;
+        require(signer == seller, "Signature must be from NFT owner (seller)");
+
         address nftContract = listing.nftContract;
         address paymentTokenAddr = listing.paymentToken;
         uint256 tokenId = listing.tokenId;
